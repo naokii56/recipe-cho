@@ -93,6 +93,14 @@
   .card .info{padding:.55rem .7rem .7rem;}
   .card .name{font-size:.95rem;font-weight:600;line-height:1.45;}
   .card .meta{font-size:.75rem;color:var(--ink-soft);margin-top:.25rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+  .b-soon{
+    border:1.2px solid #d8b25e;color:#b8923f;border-radius:999px;
+    padding:.02rem .5rem;font-size:.66rem;font-weight:600;letter-spacing:.08em;white-space:nowrap;
+  }
+  .b-made{
+    background:var(--accent-soft);color:var(--accent);border-radius:999px;
+    padding:.04rem .5rem;font-size:.66rem;font-weight:700;white-space:nowrap;
+  }
   .badge-cat{
     position:absolute;top:.55rem;left:.55rem;
     background:rgba(255,255,255,.92);color:var(--accent);font-size:.72rem;font-weight:700;
@@ -530,13 +538,15 @@ function renderGrid(){
     const c = document.createElement("div");
     c.className = "card";
     c.onclick = ()=>showDetail(r);
-    const meta = [r.time, r.timesCooked>0 ? "作った " + r.timesCooked + "回" : "まだ作っていない"].filter(Boolean).join("・");
+    const badge = r.timesCooked>0
+      ? '<span class="b-made">作った '+r.timesCooked+'回</span>'
+      : '<span class="b-soon">これから</span>';
     c.innerHTML =
       '<img class="ph" src="'+r.photo+'" alt="" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">' +
       '<span class="badge-cat">'+r.category+'</span>' +
       (r.favorite ? '<span class="badge-star">⭐</span>' : "") +
       '<div class="info"><div class="name">'+r.name+'</div>' +
-      '<div class="meta">'+meta+'</div></div>';
+      '<div class="meta">'+(r.time||"")+' '+badge+'</div></div>';
     grid.appendChild(c);
   });
 
@@ -558,10 +568,14 @@ function showDetail(r){
 
   const meta = document.getElementById("dMeta");
   meta.innerHTML = "";
-  [["⏱ ", r.time], ["🔥 ", r.kcal], ["💰 ", r.cost],
-   ["", r.timesCooked>0 ? "作った回数 <b>"+r.timesCooked+"回</b>" : "はじめて作る料理"]]
+  [["⏱ ", r.time], ["🔥 ", r.kcal], ["💰 ", r.cost]]
    .forEach(([ic,tx])=>{ if(!tx) return;
      const p=document.createElement("span"); p.className="pill"; p.innerHTML=ic+tx; meta.appendChild(p); });
+  const stat = document.createElement("span");
+  if (r.timesCooked>0){ stat.className="b-made"; stat.textContent="作った "+r.timesCooked+"回"; }
+  else { stat.className="b-soon"; stat.textContent="これからの一皿"; }
+  stat.style.alignSelf="center";
+  meta.appendChild(stat);
 
   const src = document.getElementById("dSrc");
   src.href = r.source.url;
