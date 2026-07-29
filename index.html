@@ -641,6 +641,44 @@ const RECIPES = [
     ],
     tips: "湿気た海苔でも大丈夫。海苔がタレを吸って鶏の旨味と混ざるのがおいしさの決め手。下味は「鶏むね肉とコーンのバター醤油炒め」と同じ万能鶏むね肉なので、覚えるとレパートリーが広がる。お弁当にもお酒にも。",
     notes: []
+  },
+  {
+    id: "r7",
+    name: "かなゑおばさんの味ごはん",
+    category: "その他",
+    favorite: false,
+    timesCooked: 0,
+    fixed: "米3合分",
+    photo: "kanae-gohan.jpg",
+    source: { name: "手書きノート（GoodNotes）", url: "kanae-gohan.jpg" },
+    time: "約1時間（炊飯込み）",
+    kcal: "",
+    cost: "",
+    baseServings: 2,
+    ingredients: [
+      { group: "材料", items: [
+        { n: "米", q: "3合" },
+        { n: "とりもも肉（1cm角に切る）", q: "200g" },
+        { n: "たけのこ（ゆでて切ったもの・冷凍可）", q: "200g" },
+        { n: "にんじん（ささがき）", q: "1本" },
+        { n: "あげ（こまかく切る）", q: "2枚" },
+        { n: "油（炒め用）", q: "大さじ1" },
+        { n: "こんにゃく・ごぼう", q: "お好みで" }
+      ]},
+      { group: "調味料", items: [
+        { n: "酒", q: "大さじ2" },
+        { n: "みりん", q: "大さじ2" },
+        { n: "しょうゆ", q: "75mL（1合に25mL）" }
+      ]}
+    ],
+    steps: [
+      "なべに油大さじ1をしき、とり肉をいためる。火が通ったら、たけのこなどの具を入れ、調味料を入れて5分煮る。",
+      "だし汁と具に分け、炊飯器に洗い米とだし汁と水を入れる（目盛り通り）。",
+      "炊飯器を「たきこみ」に設定して炊く。炊き上がり12分前のタイミングでブザーが鳴るので、そのときに具をのせる。",
+      "10分後にむらしが終わるので、よくかき混ぜる。"
+    ],
+    tips: "しょうゆの目安は「1合に25mL」（3合で75mL）。具を煮てから、煮汁でごはんを炊き、具は後のせにするのがこのレシピの流儀。",
+    notes: []
   }
 ];
 
@@ -780,6 +818,15 @@ function showList(){
 
 function renderServings(){
   const el = document.getElementById("servings");
+  const note = document.querySelector(".scale-note");
+  if (cur.fixed){
+    el.style.display = "none";
+    if (note) note.style.display = "none";
+    document.getElementById("servLabel").textContent = "（分量：" + cur.fixed + "）";
+    return;
+  }
+  el.style.display = "flex";
+  if (note) note.style.display = "block";
   el.innerHTML = "";
   [1,2].forEach(n=>{
     const b = document.createElement("button");
@@ -793,7 +840,7 @@ function renderServings(){
 }
 
 function renderIngredients(){
-  const f = curServ / cur.baseServings;
+  const f = cur.fixed ? 1 : curServ / cur.baseServings;
   const box = document.getElementById("ingBox");
   box.innerHTML = "";
   cur.ingredients.forEach(g=>{
@@ -1057,8 +1104,8 @@ function setKey(){
 let wakeLock = null;
 async function openCook(){
   document.getElementById("cmTitle").textContent = cur.name;
-  document.getElementById("cmServ").textContent = curServ + "人分";
-  const f = curServ / cur.baseServings;
+  document.getElementById("cmServ").textContent = cur.fixed ? cur.fixed : curServ + "人分";
+  const f = cur.fixed ? 1 : curServ / cur.baseServings;
   const el = document.getElementById("cmList");
   el.innerHTML = "";
   cur.ingredients.forEach(g=>{
