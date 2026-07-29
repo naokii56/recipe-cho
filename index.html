@@ -222,6 +222,39 @@
     font-size:.8rem;color:var(--ink-soft);line-height:1.65;
   }
   .notes .hint b{color:var(--accent);}
+  .note-acts{margin-left:auto;flex:none;display:flex;gap:.6rem;}
+  .note-acts button{
+    background:none;border:none;font-family:inherit;font-size:.75rem;cursor:pointer;
+    color:var(--ink-soft);text-decoration:underline;padding:0;
+  }
+  .note-acts button.del2{color:#b03030;font-weight:700;}
+  .note-form{margin-top:.7rem;}
+  .note-form textarea{
+    width:100%;min-height:3.2rem;border:1.5px solid var(--line);border-radius:12px;
+    padding:.6rem .8rem;font-family:inherit;font-size:1rem;color:var(--ink);
+    background:var(--card);resize:vertical;box-sizing:border-box;
+  }
+  .note-form textarea:focus{outline:none;border-color:var(--accent);}
+  .note-save{
+    margin-top:.5rem;width:100%;padding:.65rem;border:none;border-radius:12px;
+    background:var(--accent);color:#fff;font-size:.98rem;font-weight:700;
+    font-family:inherit;cursor:pointer;letter-spacing:.05em;
+  }
+  .note-save:disabled{opacity:.5;}
+  .note-msg{font-size:.8rem;margin-top:.4rem;color:var(--green);min-height:1.2em;}
+  .note-msg.err{color:#b03030;}
+  .keybox{
+    margin-top:.6rem;background:#fdf6e8;border:1.5px solid #e8d5a8;border-radius:12px;
+    padding:.8rem;font-size:.85rem;line-height:1.7;
+  }
+  .keybox input{
+    width:100%;box-sizing:border-box;margin-top:.4rem;padding:.55rem .7rem;
+    border:1.5px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;
+  }
+  .keybox button{
+    margin-top:.5rem;width:100%;padding:.55rem;border:none;border-radius:10px;
+    background:#b8923f;color:#fff;font-weight:700;font-family:inherit;font-size:.9rem;cursor:pointer;
+  }
 
   footer{
     margin-top:2.5rem;text-align:center;font-size:.75rem;color:var(--ink-soft);
@@ -311,6 +344,16 @@
 
       <h2 class="sec">次はこうする</h2>
       <div class="notes" id="dNotes"></div>
+      <div class="note-form">
+        <textarea id="noteInput" placeholder="例：砂糖はもう少し控えめがいい"></textarea>
+        <button class="note-save" id="noteSaveBtn" onclick="saveNote()">メモを書き込む</button>
+        <div class="note-msg" id="noteMsg"></div>
+        <div class="keybox" id="keyBox" style="display:none">
+          この画面から書き込むには、<b>合鍵</b>（github_pat_ で始まる文字列）を一度だけ設定してください。iPhoneのメモ帳に保存してあるものです。
+          <input type="password" id="keyInput" placeholder="github_pat_...">
+          <button onclick="setKey()">合鍵を設定する</button>
+        </div>
+      </div>
 
       <footer id="dFoot"></footer>
     </div>
@@ -592,6 +635,10 @@ function showDetail(r){
   if (r.tips){ tp.style.display="block"; tp.innerHTML = "<b>コツ：</b>" + r.tips; }
   else tp.style.display="none";
 
+  editIdx = null; delArm = null;
+  document.getElementById("noteInput").value = "";
+  document.getElementById("noteSaveBtn").textContent = "メモを書き込む";
+  noteMsg("");
   renderNotes();
 
   document.getElementById("dFoot").innerHTML =
@@ -639,21 +686,149 @@ function renderIngredients(){
   });
 }
 
+/* ---- メモ（notes.json に直接保存） ---- */
+const REPO = "naokii56/recipe-cho";
+const NOTES_API = "https://api.github.com/repos/" + REPO + "/contents/notes.json";
+let NOTES = {};          // { レシピid: [{date, text}, ...] }
+let notesLoaded = false;
+let editIdx = null;      // 編集中のメモ番号
+let delArm = null;       // 削除の二度押し確認用
+let KEY = null;
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+KEY = lsGet("rc_key");
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function b64decode(b){ const bin = atob(b.replace(/\s/g,"")); return new TextDecoder().decode(Uint8Array.from(bin, c=>c.charCodeAt(0))); }
+function b64encode(s){ const bytes = new TextEncoder().encode(s); let bin=""; bytes.forEach(x=>bin+=String.fromCharCode(x)); return btoa(bin); }
+
+async function loadNotes(){
+  try{
+    const r = await fetch(NOTES_API + "?ref=main&nocache=" + Date.now(), {headers:{Accept:"application/vnd.github+json"}});
+    if (r.ok){
+      const d = await r.json();
+      NOTES = JSON.parse(b64decode(d.content));
+    }
+  }catch(e){}
+  notesLoaded = true;
+  if (cur && document.getElementById("detailView").classList.contains("show")) renderNotes();
+}
+
+function myNotes(){ return NOTES[cur.id] || []; }
+
 function renderNotes(){
   const el = document.getElementById("dNotes");
+  const list = myNotes();
   let h = "";
-  if (cur.notes.length===0){
-    h += '<div class="hint">まだメモはありません。<br>' +
-         '作ってみて気づいたこと——「<b>砂糖はもう少し控えめ</b>」「<b>焼き時間は長めがよい</b>」——を' +
-         'Claudeに伝えると、ここに日付つきで書き足されます。<br>' +
+  if (list.length===0){
+    h += '<div class="hint">まだメモはありません。作ってみて気づいたこと——' +
+         '「<b>砂糖はもう少し控えめ</b>」「<b>焼き時間は長めがよい</b>」——を下の欄にどうぞ。<br>' +
          '回を重ねるほど、この料理があなたの味になっていきます。</div>';
   } else {
-    cur.notes.forEach(n=>{
-      h += '<div class="note"><span class="dt">'+n.date+'</span><span class="tx">'+n.text+'</span></div>';
+    list.forEach((n, i)=>{
+      const armed = (delArm === i);
+      h += '<div class="note"><span class="dt">'+esc(n.date)+'</span>' +
+           '<span class="tx">'+esc(n.text)+'</span>' +
+           '<span class="note-acts">' +
+           '<button onclick="editNote('+i+')">編集</button>' +
+           (armed
+             ? '<button class="del2" onclick="deleteNote('+i+')">もう一度押すと削除</button>'
+             : '<button onclick="armDelete('+i+')">削除</button>') +
+           '</span></div>';
     });
-    h += '<div class="hint" style="margin-top:.5rem">新しい気づきは、Claudeに伝えれば書き足されます。</div>';
   }
   el.innerHTML = h;
+}
+
+function noteMsg(t, err){
+  const m = document.getElementById("noteMsg");
+  m.textContent = t;
+  m.className = "note-msg" + (err ? " err" : "");
+}
+
+function editNote(i){
+  editIdx = i; delArm = null;
+  document.getElementById("noteInput").value = myNotes()[i].text;
+  document.getElementById("noteSaveBtn").textContent = "修正を保存する";
+  noteMsg("メモを直したら「修正を保存する」を押してください");
+  renderNotes();
+}
+
+function armDelete(i){ delArm = i; renderNotes(); setTimeout(()=>{ if(delArm===i){ delArm=null; renderNotes(); } }, 4000); }
+
+async function deleteNote(i){
+  delArm = null;
+  const list = myNotes();
+  list.splice(i, 1);
+  NOTES[cur.id] = list;
+  renderNotes();
+  await pushNotes("メモを削除");
+}
+
+async function saveNote(){
+  const ta = document.getElementById("noteInput");
+  const text = ta.value.trim();
+  if (!text){ noteMsg("メモを入力してください", true); return; }
+  const list = myNotes();
+  if (editIdx !== null){
+    list[editIdx].text = text;
+  } else {
+    const d = new Date();
+    list.push({ date: d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate(), text: text });
+  }
+  NOTES[cur.id] = list;
+  ta.value = "";
+  editIdx = null;
+  document.getElementById("noteSaveBtn").textContent = "メモを書き込む";
+  renderNotes();
+  await pushNotes("メモを追加");
+}
+
+async function pushNotes(msg){
+  if (!KEY){
+    document.getElementById("keyBox").style.display = "block";
+    noteMsg("合鍵が未設定です。下の欄で一度だけ設定してください", true);
+    return;
+  }
+  const btn = document.getElementById("noteSaveBtn");
+  btn.disabled = true;
+  noteMsg("書き込んでいます…");
+  try{
+    // 最新のsha取得
+    let sha = undefined;
+    const g = await fetch(NOTES_API + "?ref=main&nocache=" + Date.now(),
+      {headers:{Accept:"application/vnd.github+json", Authorization:"Bearer " + KEY}});
+    if (g.ok) sha = (await g.json()).sha;
+    const body = { message: msg, branch: "main", content: b64encode(JSON.stringify(NOTES, null, 1)) };
+    if (sha) body.sha = sha;
+    const r = await fetch(NOTES_API, {
+      method: "PUT",
+      headers: {Accept:"application/vnd.github+json", Authorization:"Bearer " + KEY, "Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    if (r.ok){
+      noteMsg("帖に書き込みました ✓");
+    } else if (r.status === 401 || r.status === 403){
+      noteMsg("合鍵が使えませんでした。設定し直してください", true);
+      document.getElementById("keyBox").style.display = "block";
+    } else {
+      noteMsg("書き込めませんでした（通信エラー）。もう一度お試しください", true);
+    }
+  }catch(e){
+    noteMsg("書き込めませんでした（通信エラー）。電波のよい場所でもう一度どうぞ", true);
+  }
+  btn.disabled = false;
+}
+
+function setKey(){
+  const v = document.getElementById("keyInput").value.trim();
+  if (!v.startsWith("github_pat_")){ noteMsg("合鍵は github_pat_ で始まる文字列です", true); return; }
+  KEY = v;
+  lsSet("rc_key", v);
+  document.getElementById("keyBox").style.display = "none";
+  document.getElementById("keyInput").value = "";
+  noteMsg("合鍵を設定しました。もう一度「メモを書き込む」を押してください");
 }
 
 /* ============ 調理モード ============ */
@@ -692,6 +867,7 @@ function closeCook(){
 document.getElementById("q").addEventListener("input", renderGrid);
 catChips();
 renderGrid();
+loadNotes();
 </script>
 </body>
 </html>
