@@ -229,6 +229,17 @@
   }
   .note-side button.del2{color:#b03030;font-weight:700;}
   .note .tx{flex:1;}
+  .in-ta{
+    width:100%;box-sizing:border-box;min-height:3.6rem;
+    border:1.5px solid var(--accent);border-radius:10px;padding:.5rem .7rem;
+    font-family:inherit;font-size:.95rem;line-height:1.6;color:var(--ink);
+    resize:vertical;background:#fffdf8;
+  }
+  .in-ta:focus{outline:none;}
+  .edit-btns{display:flex;gap:.5rem;margin-top:.45rem;}
+  .edit-btns button{border:none;border-radius:999px;padding:.32rem 1.1rem;font-family:inherit;font-size:.85rem;cursor:pointer;}
+  .edit-btns .e-save{background:var(--accent);color:#fff;font-weight:700;}
+  .edit-btns .e-cancel{background:var(--card);border:1.5px solid var(--line);color:var(--ink-soft);}
   .note-form{margin-top:.7rem;}
   .note-form textarea{
     width:100%;min-height:3.2rem;border:1.5px solid var(--line);border-radius:12px;
@@ -900,15 +911,27 @@ function renderNotes(){
     // 新しいメモほど上に（編集・削除は元の番号で行う）
     list.map((n, i) => [n, i]).reverse().forEach(([n, i])=>{
       const armed = (delArm === i);
-      h += '<div class="note">' +
-           '<span class="note-side">' +
-           '<span class="dt">'+esc(n.date)+'</span>' +
-           '<button onclick="editNote('+i+')">編集</button>' +
-           (armed
-             ? '<button class="del2" onclick="deleteNote('+i+')">本当に削除</button>'
-             : '<button onclick="armDelete('+i+')">削除</button>') +
-           '</span>' +
-           '<span class="tx">'+esc(n.text)+'</span></div>';
+      if (editIdx === i){
+        // そのメモ自身が編集欄に変わる
+        h += '<div class="note">' +
+             '<span class="note-side"><span class="dt">'+esc(n.date)+'</span></span>' +
+             '<span class="tx">' +
+             '<textarea class="in-ta" id="editTa">'+esc(n.text)+'</textarea>' +
+             '<div class="edit-btns">' +
+             '<button class="e-save" onclick="saveEdit()">保存</button>' +
+             '<button class="e-cancel" onclick="cancelEdit()">やめる</button>' +
+             '</div></span></div>';
+      } else {
+        h += '<div class="note">' +
+             '<span class="note-side">' +
+             '<span class="dt">'+esc(n.date)+'</span>' +
+             '<button onclick="editNote('+i+')">編集</button>' +
+             (armed
+               ? '<button class="del2" onclick="deleteNote('+i+')">本当に削除</button>'
+               : '<button onclick="armDelete('+i+')">削除</button>') +
+             '</span>' +
+             '<span class="tx">'+esc(n.text)+'</span></div>';
+      }
     });
   }
   el.innerHTML = h;
@@ -922,10 +945,25 @@ function noteMsg(t, err){
 
 function editNote(i){
   editIdx = i; delArm = null;
-  document.getElementById("noteInput").value = myNotes()[i].text;
-  document.getElementById("noteSaveBtn").textContent = "修正を保存する";
-  noteMsg("メモを直したら「修正を保存する」を押してください");
   renderNotes();
+  const ta = document.getElementById("editTa");
+  if (ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+
+async function saveEdit(){
+  const ta = document.getElementById("editTa");
+  const text = ta ? ta.value.trim() : "";
+  if (!text){ noteMsg("メモが空です。消したい場合は「削除」を使ってください", true); return; }
+  myNotes()[editIdx].text = text;
+  editIdx = null;
+  renderNotes();
+  await pushNotes("メモを修正");
+}
+
+function cancelEdit(){
+  editIdx = null;
+  renderNotes();
+  noteMsg("");
 }
 
 function armDelete(i){ delArm = i; renderNotes(); setTimeout(()=>{ if(delArm===i){ delArm=null; renderNotes(); } }, 4000); }
@@ -944,16 +982,10 @@ async function saveNote(){
   const text = ta.value.trim();
   if (!text){ noteMsg("メモを入力してください", true); return; }
   const list = myNotes();
-  if (editIdx !== null){
-    list[editIdx].text = text;
-  } else {
-    const d = new Date();
-    list.push({ date: d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate(), text: text });
-  }
+  const d = new Date();
+  list.push({ date: d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate(), text: text });
   NOTES[cur.id] = list;
   ta.value = "";
-  editIdx = null;
-  document.getElementById("noteSaveBtn").textContent = "メモを書き込む";
   renderNotes();
   await pushNotes("メモを追加");
 }
