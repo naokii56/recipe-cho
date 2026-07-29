@@ -222,12 +222,13 @@
     font-size:.8rem;color:var(--ink-soft);line-height:1.65;
   }
   .notes .hint b{color:var(--accent);}
-  .note-acts{margin-left:auto;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;padding-left:.5rem;}
-  .note-acts button{
+  .note-side{flex:none;display:flex;flex-direction:column;gap:.3rem;align-items:flex-start;}
+  .note-side button{
     background:none;border:none;font-family:inherit;font-size:.75rem;cursor:pointer;
     color:var(--ink-soft);text-decoration:underline;padding:0;
   }
-  .note-acts button.del2{color:#b03030;font-weight:700;}
+  .note-side button.del2{color:#b03030;font-weight:700;}
+  .note .tx{flex:1;}
   .note-form{margin-top:.7rem;}
   .note-form textarea{
     width:100%;min-height:3.2rem;border:1.5px solid var(--line);border-radius:12px;
@@ -899,14 +900,15 @@ function renderNotes(){
     // 新しいメモほど上に（編集・削除は元の番号で行う）
     list.map((n, i) => [n, i]).reverse().forEach(([n, i])=>{
       const armed = (delArm === i);
-      h += '<div class="note"><span class="dt">'+esc(n.date)+'</span>' +
-           '<span class="tx">'+esc(n.text)+'</span>' +
-           '<span class="note-acts">' +
+      h += '<div class="note">' +
+           '<span class="note-side">' +
+           '<span class="dt">'+esc(n.date)+'</span>' +
            '<button onclick="editNote('+i+')">編集</button>' +
            (armed
-             ? '<button class="del2" onclick="deleteNote('+i+')">もう一度押すと削除</button>'
+             ? '<button class="del2" onclick="deleteNote('+i+')">本当に削除</button>'
              : '<button onclick="armDelete('+i+')">削除</button>') +
-           '</span></div>';
+           '</span>' +
+           '<span class="tx">'+esc(n.text)+'</span></div>';
     });
   }
   el.innerHTML = h;
