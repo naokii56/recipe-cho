@@ -896,7 +896,8 @@ function renderNotes(){
          '「<b>砂糖はもう少し控えめ</b>」「<b>焼き時間は長めがよい</b>」——を下の欄にどうぞ。<br>' +
          '回を重ねるほど、この料理があなたの味になっていきます。</div>';
   } else {
-    list.forEach((n, i)=>{
+    // 新しいメモほど上に（編集・削除は元の番号で行う）
+    list.map((n, i) => [n, i]).reverse().forEach(([n, i])=>{
       const armed = (delArm === i);
       h += '<div class="note"><span class="dt">'+esc(n.date)+'</span>' +
            '<span class="tx">'+esc(n.text)+'</span>' +
