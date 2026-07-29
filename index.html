@@ -261,6 +261,31 @@
     padding:0 1.2rem;line-height:1.8;
   }
 
+  /* バックアップと復旧 */
+  .backup{padding:2rem 1.2rem 0;}
+  .bk-toggle{
+    display:block;margin:0 auto;background:none;border:1.5px solid var(--line);
+    border-radius:999px;padding:.4rem 1.1rem;font-family:inherit;font-size:.82rem;
+    color:var(--ink-soft);cursor:pointer;
+  }
+  .bk-panel{
+    margin-top:.9rem;background:var(--card);border:1.5px solid var(--line);
+    border-radius:16px;padding:1rem;font-size:.85rem;line-height:1.7;color:var(--ink);
+  }
+  .bk-panel h3{font-size:.9rem;margin:.2rem 0 .3rem;color:var(--ink);}
+  .bk-panel p{color:var(--ink-soft);font-size:.8rem;}
+  .bk-btn{
+    width:100%;margin-top:.5rem;padding:.7rem;border:none;border-radius:12px;
+    background:var(--green);color:#fff;font-weight:700;font-family:inherit;font-size:.95rem;cursor:pointer;
+  }
+  .bk-btn.rs{background:#8a6d3b;}
+  .bk-btn.rs.arm{background:#b03030;}
+  .bk-btn:disabled{opacity:.5;}
+  .bk-file{margin-top:.5rem;font-size:.85rem;width:100%;}
+  .bk-sep{border:none;border-top:1.5px dashed var(--line);margin:1rem 0;}
+  .bk-msg{margin-top:.5rem;font-size:.8rem;color:var(--green);min-height:1.2em;}
+  .bk-msg.err{color:#b03030;}
+
   /* ---------- 調理モード ---------- */
   .cookmode{
     position:fixed;inset:0;background:var(--paper);z-index:50;display:none;
@@ -310,6 +335,21 @@
     <div class="count" id="count"></div>
     <div class="grid" id="grid"></div>
     <div class="empty" id="empty" style="display:none">見つかりませんでした。<br>べつの言葉でさがしてみてください。</div>
+
+    <div class="backup">
+      <button class="bk-toggle" onclick="toggleBackup()">⚙ バックアップと復旧</button>
+      <div class="bk-panel" id="bkPanel" style="display:none">
+        <h3>バックアップ（予備を手元に保存）</h3>
+        <p>帖の中身すべて（レシピ・写真・メモ）をひとつのファイルにまとめて、この端末に保存します。ときどき保存しておくと安心です。</p>
+        <button class="bk-btn" id="bkBtn" onclick="doBackup()">バックアップを保存する</button>
+        <hr class="bk-sep">
+        <h3>復旧（バックアップから戻す）</h3>
+        <p>保存したバックアップファイルを選ぶと、帖全体をその時点の内容に戻します。<b>今の内容は上書きされます。</b>合鍵が必要です。</p>
+        <input type="file" class="bk-file" id="bkFile" accept="application/json,.json">
+        <button class="bk-btn rs" id="rsBtn" onclick="doRestore()">選んだファイルで復旧する</button>
+        <div class="bk-msg" id="bkMsg"></div>
+      </div>
+    </div>
 
     <footer>
       レシピを増やしたいときは、Claudeに<br>「このURLを登録して」「この写真のレシピを登録して」<br>と伝えるだけ。あとはこの帖に追加されます。
@@ -900,6 +940,105 @@ async function pushNotes(msg){
     }
   }catch(e){
     noteMsg("書き込めませんでした（通信エラー）。電波のよい場所でもう一度どうぞ", true);
+  }
+  btn.disabled = false;
+}
+
+/* ---- バックアップと復旧 ---- */
+function toggleBackup(){
+  const p = document.getElementById("bkPanel");
+  p.style.display = (p.style.display === "none") ? "block" : "none";
+}
+function bkMsg(t, err){
+  const m = document.getElementById("bkMsg");
+  m.textContent = t;
+  m.className = "bk-msg" + (err ? " err" : "");
+}
+function ghHeaders(){
+  const h = {Accept: "application/vnd.github+json"};
+  if (KEY) h.Authorization = "Bearer " + KEY;
+  return h;
+}
+
+async function doBackup(){
+  const btn = document.getElementById("bkBtn");
+  btn.disabled = true;
+  try{
+    bkMsg("帖の中身を集めています…");
+    const listR = await fetch("https://api.github.com/repos/" + REPO + "/contents/?ref=main&nocache=" + Date.now(), {headers: ghHeaders()});
+    if (!listR.ok) throw new Error("list");
+    const entries = (await listR.json()).filter(e => e.type === "file");
+    const files = {};
+    for (let i = 0; i < entries.length; i++){
+      bkMsg("集めています… (" + (i+1) + "/" + entries.length + ") " + entries[i].name);
+      const fr = await fetch("https://api.github.com/repos/" + REPO + "/contents/" + entries[i].path + "?ref=main&nocache=" + Date.now(), {headers: ghHeaders()});
+      if (!fr.ok) throw new Error(entries[i].path);
+      const fd = await fr.json();
+      files[entries[i].path] = (fd.content || "").replace(/\s/g, "");
+    }
+    const d = new Date();
+    const stamp = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    const backup = { app: "watashi-no-recipe-cho", repo: REPO, date: d.toISOString(), files: files };
+    const blob = new Blob([JSON.stringify(backup)], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "レシピ帖バックアップ_" + stamp + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    bkMsg("バックアップファイルを保存しました（" + entries.length + "ファイル）✓ ダウンロード先はこの端末の「ファイル」等をご確認ください");
+  }catch(e){
+    bkMsg("バックアップに失敗しました。電波のよい場所でもう一度お試しください", true);
+  }
+  btn.disabled = false;
+}
+
+let rsArmed = false;
+async function doRestore(){
+  const btn = document.getElementById("rsBtn");
+  const fi = document.getElementById("bkFile");
+  if (!fi.files || !fi.files.length){ bkMsg("先にバックアップファイルを選んでください", true); return; }
+  if (!KEY){
+    document.getElementById("keyBox") && (document.getElementById("keyBox").style.display = "block");
+    bkMsg("復旧には合鍵が必要です。どれかレシピを開き、メモ欄の下で合鍵を設定してから戻ってきてください", true);
+    return;
+  }
+  if (!rsArmed){
+    rsArmed = true;
+    btn.textContent = "本当に復旧する（今の内容を上書き）";
+    btn.classList.add("arm");
+    bkMsg("確認：もう一度ボタンを押すと復旧を始めます");
+    setTimeout(()=>{ rsArmed = false; btn.textContent = "選んだファイルで復旧する"; btn.classList.remove("arm"); }, 8000);
+    return;
+  }
+  rsArmed = false;
+  btn.textContent = "選んだファイルで復旧する";
+  btn.classList.remove("arm");
+  btn.disabled = true;
+  try{
+    const text = await fi.files[0].text();
+    const backup = JSON.parse(text);
+    if (backup.app !== "watashi-no-recipe-cho" || !backup.files) throw new Error("bad file");
+    const paths = Object.keys(backup.files);
+    let done = 0;
+    for (const path of paths){
+      done++;
+      bkMsg("復旧しています… (" + done + "/" + paths.length + ") " + path);
+      let sha = undefined;
+      const g = await fetch("https://api.github.com/repos/" + REPO + "/contents/" + path + "?ref=main&nocache=" + Date.now(), {headers: ghHeaders()});
+      if (g.ok) sha = (await g.json()).sha;
+      const body = { message: "バックアップから復旧 (" + (backup.date || "").slice(0,10) + ")", branch: "main", content: backup.files[path] };
+      if (sha) body.sha = sha;
+      const r = await fetch("https://api.github.com/repos/" + REPO + "/contents/" + path, {
+        method: "PUT",
+        headers: Object.assign(ghHeaders(), {"Content-Type": "application/json"}),
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(path);
+    }
+    bkMsg("復旧が完了しました ✓ 数分後にページを開き直すと反映されています");
+  }catch(e){
+    bkMsg("復旧に失敗しました：" + (e.message || "") + "。もう一度お試しください", true);
   }
   btn.disabled = false;
 }
