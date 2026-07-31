@@ -889,12 +889,33 @@ function catChips(){
   });
 }
 
+/* 表記ゆれ吸収：カタカナ⇄ひらがな、よくある漢字⇄かな を同一視する */
+const KANA_MAP = [
+  ["合いびき肉","あいびきにく"],["油揚げ","あぶらあげ"],["削り節","けずりぶし"],
+  ["片栗粉","かたくりこ"],["薄力粉","はくりきこ"],["醤油","しょうゆ"],["しょう油","しょうゆ"],
+  ["正油","しょうゆ"],["砂糖","さとう"],["味噌","みそ"],["玉ねぎ","たまねぎ"],["玉葱","たまねぎ"],
+  ["人参","にんじん"],["大蒜","にんにく"],["生姜","しょうが"],["茄子","なす"],["胡椒","こしょう"],
+  ["胡麻","ごま"],["海苔","のり"],["大根","だいこん"],["胡瓜","きゅうり"],["竹の子","たけのこ"],
+  ["筍","たけのこ"],["蒟蒻","こんにゃく"],["牛蒡","ごぼう"],["椎茸","しいたけ"],["牛乳","ぎゅうにゅう"],
+  ["豚肉","ぶたにく"],["鶏","とり"],["豚","ぶた"],["卵","たまご"],["玉子","たまご"],
+  ["塩","しお"],["米","こめ"],["鯛","たい"],["こーん","とうもろこし"],["三つ葉","みつば"]
+];
+function norm(s){
+  s = s.toLowerCase();
+  s = s.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60)); // カタカナ→ひらがな
+  KANA_MAP.forEach(p => { s = s.split(p[0]).join(p[1]); });
+  return s;
+}
 function matches(r, kw){
   if (!kw) return true;
-  kw = kw.trim();
-  if (!kw) return true;
-  if (r.name.includes(kw)) return true;
-  return r.ingredients.some(g => g.items.some(it => it.n.includes(kw)));
+  const q = norm(kw.trim());
+  if (!q) return true;
+  const hay = norm(r.name + " " + r.ingredients.map(g => g.items.map(it => it.n).join(" ")).join(" "));
+  if (hay.includes(q)) return true;
+  // 「とり肉」→「とり」のように、「肉」を外した形でも探す（「にんにく」は除外）
+  if (q === "にんにく") return false;
+  const q2 = q.replace(/(にく|肉)$/, "");
+  return q2 !== q && q2.length >= 2 && hay.includes(q2);
 }
 
 function renderGrid(){
