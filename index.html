@@ -339,7 +339,7 @@
     <div class="toolbar">
       <div class="search">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a89a86" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
-        <input id="q" type="search" placeholder="料理名・材料でさがす（例：ピーマン）">
+        <input id="q" type="search" placeholder="材料でさがす（例：にんじん 玉ねぎ）">
       </div>
       <div class="chips" id="chips"></div>
     </div>
@@ -906,16 +906,20 @@ function norm(s){
   KANA_MAP.forEach(p => { s = s.split(p[0]).join(p[1]); });
   return s;
 }
-function matches(r, kw){
-  if (!kw) return true;
-  const q = norm(kw.trim());
-  if (!q) return true;
-  const hay = norm(r.name + " " + r.ingredients.map(g => g.items.map(it => it.n).join(" ")).join(" "));
+function matchesOne(hay, q){
   if (hay.includes(q)) return true;
   // 「とり肉」→「とり」のように、「肉」を外した形でも探す（「にんにく」は除外）
   if (q === "にんにく") return false;
   const q2 = q.replace(/(にく|肉)$/, "");
   return q2 !== q && q2.length >= 2 && hay.includes(q2);
+}
+function matches(r, kw){
+  if (!kw) return true;
+  const kws = kw.trim().split(/[\s　、,]+/).map(norm).filter(Boolean);
+  if (!kws.length) return true;
+  const hay = norm(r.name + " " + r.ingredients.map(g => g.items.map(it => it.n).join(" ")).join(" "));
+  // 空白で区切った言葉すべてを含むレシピだけに絞る（掛け合わせ検索）
+  return kws.every(q => matchesOne(hay, q));
 }
 
 function renderGrid(){
