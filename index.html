@@ -924,7 +924,10 @@ function renderGrid(){
   grid.innerHTML = "";
   const hits = RECIPES.filter(r => (curCat==="すべて" || r.category===curCat) && matches(r, kw)).reverse(); // 新しい登録ほど上に
 
-  document.getElementById("count").textContent = "全 " + RECIPES.length + " 品";
+  const filtering = (kw && kw.trim()) || curCat !== "すべて";
+  document.getElementById("count").textContent = filtering
+    ? hits.length + " 品が見つかりました（全 " + RECIPES.length + " 品）"
+    : "全 " + RECIPES.length + " 品";
   document.getElementById("empty").style.display = (hits.length===0 && kw) ? "block" : "none";
 
   hits.forEach(r=>{
