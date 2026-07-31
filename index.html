@@ -910,8 +910,9 @@ function renderGrid(){
     const c = document.createElement("div");
     c.className = "card";
     c.onclick = ()=>showDetail(r);
-    const badge = r.timesCooked>0
-      ? '<span class="b-made">作った '+r.timesCooked+'回</span>'
+    const cooked = cookedCount(r);
+    const badge = cooked>0
+      ? '<span class="b-made">作った '+cooked+'回</span>'
       : '<span class="b-soon">これから</span>';
     c.innerHTML =
       '<img class="ph" src="'+r.photo+'" alt="" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">' +
@@ -944,10 +945,10 @@ function showDetail(r){
    .forEach(([ic,tx])=>{ if(!tx) return;
      const p=document.createElement("span"); p.className="pill"; p.innerHTML=ic+tx; meta.appendChild(p); });
   const stat = document.createElement("span");
-  if (r.timesCooked>0){ stat.className="b-made"; stat.textContent="作った "+r.timesCooked+"回"; }
-  else { stat.className="b-soon"; stat.textContent="これからの一皿"; }
+  stat.id = "statPill";
   stat.style.alignSelf="center";
   meta.appendChild(stat);
+  updateStatPill();
 
   const src = document.getElementById("dSrc");
   src.href = r.source.url;
@@ -971,7 +972,7 @@ function showDetail(r){
   renderNotes();
 
   document.getElementById("dFoot").innerHTML =
-    "この料理を作ったら、Claudeに「作ったよ」と伝えてください。<br>作った回数が増え、出来上がりの写真も差し替えられます。";
+    "作ったら「次はこうする」にメモをひとこと——それだけで作った回数も自動で増えます。<br>出来上がりの写真は、Claudeに送れば表紙に差し替えられます。";
 
   document.getElementById("listView").classList.add("hide");
   document.getElementById("detailView").classList.add("show");
@@ -1050,10 +1051,24 @@ async function loadNotes(){
     }
   }catch(e){}
   notesLoaded = true;
-  if (cur && document.getElementById("detailView").classList.contains("show")) renderNotes();
+  renderGrid();
+  if (cur && document.getElementById("detailView").classList.contains("show")){ renderNotes(); updateStatPill(); }
 }
 
 function myNotes(){ return NOTES[cur.id] || []; }
+
+/* 作った回数：メモを書き込むと自動で増える（notes.json の _cooked に記録） */
+function cookedCount(r){
+  const c = NOTES._cooked || {};
+  return (c[r.id] !== undefined) ? c[r.id] : r.timesCooked;
+}
+function updateStatPill(){
+  const el = document.getElementById("statPill");
+  if (!el || !cur) return;
+  const n = cookedCount(cur);
+  if (n > 0){ el.className = "b-made"; el.textContent = "作った " + n + "回"; }
+  else { el.className = "b-soon"; el.textContent = "これからの一皿"; }
+}
 
 function renderNotes(){
   const el = document.getElementById("dNotes");
@@ -1141,9 +1156,14 @@ async function saveNote(){
   const d = new Date();
   list.push({ date: d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate(), text: text });
   NOTES[cur.id] = list;
+  // メモを書いた＝作った、とみなして回数を増やす
+  if (!NOTES._cooked) NOTES._cooked = {};
+  NOTES._cooked[cur.id] = cookedCount(cur) + 1;
   ta.value = "";
   renderNotes();
-  await pushNotes("メモを追加");
+  updateStatPill();
+  renderGrid();
+  await pushNotes("メモを追加（作った回数 +1）");
 }
 
 async function pushNotes(msg){
