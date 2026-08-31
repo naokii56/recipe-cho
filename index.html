@@ -5971,6 +5971,14 @@ function pickRandomOther(pool, excludeId){
   if (!candidates.length) return null;
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
+function pickNextInOrder(pool, currentId, dir){
+  // 検索・絞り込み結果の中では、ランダムではなく表示順に進み、最後まで行ったら先頭に戻る（逆方向も同様）
+  if (pool.length < 2) return null;
+  let idx = pool.findIndex(r => r.id === currentId);
+  if (idx === -1) idx = 0;
+  const nextIdx = dir === "left" ? (idx + 1) % pool.length : (idx - 1 + pool.length) % pool.length;
+  return pool[nextIdx];
+}
 function getSwipePool(){
   // 検索・絞り込み結果から開いた場合はその結果内だけを、そうでなければ全レシピを対象にする
   return swipePool ? swipePool : RECIPES;
@@ -5993,7 +6001,9 @@ function goToRandomRecipe(dir){
   // 本体には新しいレシピを画面外で描画してから、両方を同時に同じ方向へスライドさせる。
   if (swipeLocked || !cur) return;
   const pool = getSwipePool();
-  const next = pickRandomOther(pool, cur.id);
+  const next = swipePool
+    ? pickNextInOrder(pool, cur.id, dir)   // 検索結果内：順番に、最後まで行ったら先頭に戻る
+    : pickRandomOther(pool, cur.id);       // 全件表示：ランダムに別の一品へ
   if (!next){ showSwipeHint("ほかに切り替えられるレシピがありません"); return; }
   swipeLocked = true;
 
