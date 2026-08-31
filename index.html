@@ -5458,6 +5458,7 @@ const RECIPES = [
     favorite: false,
     timesCooked: 0,
     photo: "gyudon-tegaki-memo-purple-only.jpg",
+    photoFit: "contain",
     source: { name: "手書きメモ", url: "gyudon-tegaki-memo-purple-only.jpg" },
     time: "20分",
     kcal: "",
@@ -5815,7 +5816,7 @@ function renderGrid(){
       ? '<span class="b-made">作った '+cooked+'回</span>'
       : '<span class="b-soon">これから</span>';
     c.innerHTML =
-      '<img class="ph" src="'+r.photo+'" alt="" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">' +
+      '<img class="ph" src="'+r.photo+'" alt="" style="'+(r.photoFit==="contain"?"object-fit:contain;background:#eee;":"")+'" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">' +
       '<span class="badge-cat">'+r.category+'</span>' +
       (r.favorite ? '<span class="badge-star">⭐</span>' : "") +
       '<div class="info"><div class="name">'+r.name+'</div>' +
@@ -5836,7 +5837,7 @@ function showDetail(r){
   curServ = 2;  // ふたり暮らしなので、開いたときは必ず2人分
 
   document.getElementById("dHero").innerHTML =
-    '<img src="'+r.photo+'" alt="" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">';
+    '<img src="'+r.photo+'" alt="" style="'+(r.photoFit==="contain"?"object-fit:contain;background:#eee;":"")+'" onerror="this.outerHTML=\'<div class=&quot;ph-fallback&quot;>🍳</div>\'">';
   document.getElementById("dTitle").textContent = r.name;
 
   const meta = document.getElementById("dMeta");
