@@ -157,7 +157,7 @@
   }
   .d-content-clone{
     position:absolute;
-    top:0;left:0;width:100%;
+    left:0;width:100%;
     pointer-events:none;
     z-index:2;
   }
@@ -6026,10 +6026,13 @@ function goToRandomRecipe(dir){
   const el = document.getElementById("dContent");
 
   // 現在の見た目をクローンして重ね、押し出される側として使う
+  // （「戻る」ボタンの分だけ下に本体があるので、その分をクローンのtopに合わせて縦位置のズレを防ぐ）
+  const topOffset = el.offsetTop;
   const clone = el.cloneNode(true);
   clone.removeAttribute("id");
   clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
   clone.classList.add("d-content-clone");
+  clone.style.top = topOffset + "px";
   wrap.appendChild(clone);
 
   // 本体には次のレシピを描画し、まだ画面外（フリック方向の逆側）に置いておく
