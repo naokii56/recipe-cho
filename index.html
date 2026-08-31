@@ -146,8 +146,24 @@
   .empty{padding:2.5rem 1.2rem;text-align:center;color:var(--ink-soft);font-size:.95rem;}
 
   /* ---------- 詳細ページ ---------- */
-  .detail{display:none;}
+  .detail{display:none;overflow-x:hidden;}
   .detail.show{display:block;}
+  .d-content{
+    transition:transform .3s cubic-bezier(.22,.61,.36,1), opacity .3s cubic-bezier(.22,.61,.36,1);
+    will-change:transform,opacity;
+  }
+  .d-content.no-anim{transition:none !important;}
+  .d-content.leave-left{transform:translateX(-32%);opacity:0;}
+  .d-content.leave-right{transform:translateX(32%);opacity:0;}
+  .d-content.enter-from-left{transform:translateX(-32%);opacity:0;}
+  .d-content.enter-from-right{transform:translateX(32%);opacity:0;}
+  .swipe-hint{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:rgba(40,32,24,.78);color:#fff;font-size:.85rem;font-weight:600;
+    padding:.55rem 1.1rem;border-radius:999px;pointer-events:none;opacity:0;
+    transition:opacity .2s;z-index:50;letter-spacing:.05em;
+  }
+  .swipe-hint.show{opacity:1;}
   .list.hide{display:none;}
   .back{
     display:inline-flex;align-items:center;gap:.35rem;
@@ -392,6 +408,7 @@
   <!-- ===== 詳細 ===== -->
   <div class="detail" id="detailView">
     <button class="back" onclick="showList()">‹ 一覧にもどる</button>
+    <div class="d-content" id="dContent">
     <div class="hero" id="dHero"></div>
     <div class="d-body">
       <div class="d-title" id="dTitle"></div>
@@ -429,6 +446,7 @@
       </div>
 
       <footer id="dFoot"></footer>
+    </div>
     </div>
   </div>
 
@@ -5770,6 +5788,7 @@ function scaleQty(q, factor){
 let curCat = "すべて";
 let cur = null;
 let curServ = null;
+let swipePool = null;  // 検索/絞り込み結果から開いた場合、その結果内だけをスワイプで巡回する
 
 function catChips(){
   const el = document.getElementById("chips");
@@ -5831,7 +5850,7 @@ function renderGrid(){
   hits.forEach(r=>{
     const c = document.createElement("div");
     c.className = "card";
-    c.onclick = ()=>showDetail(r);
+    c.onclick = ()=>{ swipePool = filtering ? hits.slice() : null; showDetail(r); };
     const cooked = cookedCount(r);
     const badge = cooked>0
       ? '<span class="b-made">作った '+cooked+'回</span>'
@@ -5905,6 +5924,74 @@ function showList(){
   document.getElementById("detailView").classList.remove("show");
   document.getElementById("listView").classList.remove("hide");
   window.scrollTo(0,0);
+}
+
+/* ============ 横フリックでランダムな別レシピへ ============ */
+let swipeStartX = null, swipeStartY = null, swipeLocked = false;
+
+function pickRandomOther(pool, excludeId){
+  const candidates = pool.filter(r => r.id !== excludeId);
+  if (!candidates.length) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+function getSwipePool(){
+  // 検索・絞り込み結果から開いた場合はその結果内だけを、そうでなければ全レシピを対象にする
+  return swipePool ? swipePool : RECIPES;
+}
+function showSwipeHint(msg){
+  let hint = document.getElementById("swipeHint");
+  if (!hint){
+    hint = document.createElement("div");
+    hint.id = "swipeHint";
+    hint.className = "swipe-hint";
+    document.body.appendChild(hint);
+  }
+  hint.textContent = msg;
+  hint.classList.add("show");
+  clearTimeout(showSwipeHint._t);
+  showSwipeHint._t = setTimeout(()=>hint.classList.remove("show"), 1300);
+}
+function goToRandomRecipe(dir){
+  if (swipeLocked || !cur) return;
+  const pool = getSwipePool();
+  const next = pickRandomOther(pool, cur.id);
+  if (!next){ showSwipeHint("ほかに切り替えられるレシピがありません"); return; }
+  swipeLocked = true;
+  const el = document.getElementById("dContent");
+  el.classList.add(dir === "left" ? "leave-left" : "leave-right");
+  setTimeout(()=>{
+    showDetail(next);
+    el.classList.add("no-anim", dir === "left" ? "enter-from-right" : "enter-from-left");
+    void el.offsetWidth; // 強制リフロー：ジャンプ位置を確定させてからアニメを開始する
+    el.classList.remove("no-anim");
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        el.classList.remove("enter-from-right", "enter-from-left", "leave-left", "leave-right");
+        setTimeout(()=>{ swipeLocked = false; }, 320);
+      });
+    });
+  }, 300);
+}
+function initSwipe(){
+  const el = document.getElementById("dContent");
+  if (!el || el._swipeInit) return;
+  el._swipeInit = true;
+  el.addEventListener("touchstart", e=>{
+    if (e.touches.length !== 1) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+  }, {passive:true});
+  el.addEventListener("touchend", e=>{
+    if (swipeStartX === null || swipeLocked) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeStartX;
+    const dy = t.clientY - swipeStartY;
+    swipeStartX = null;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4){
+      goToRandomRecipe(dx < 0 ? "left" : "right");
+    }
+  }, {passive:true});
+  el.addEventListener("touchcancel", ()=>{ swipeStartX = null; }, {passive:true});
 }
 
 function renderServings(){
@@ -6270,6 +6357,7 @@ document.getElementById("q").addEventListener("input", renderGrid);
 catChips();
 renderGrid();
 loadNotes();
+initSwipe();
 </script>
 </body>
 </html>
