@@ -5961,15 +5961,13 @@ function goToRandomRecipe(dir){
   el.classList.add(dir === "left" ? "leave-left" : "leave-right");
   setTimeout(()=>{
     showDetail(next);
+    el.classList.remove("leave-left", "leave-right");
     el.classList.add("no-anim", dir === "left" ? "enter-from-right" : "enter-from-left");
-    void el.offsetWidth; // 強制リフロー：ジャンプ位置を確定させてからアニメを開始する
+    void el.offsetWidth; // 強制リフロー：ジャンプ先の位置を確定させる
     el.classList.remove("no-anim");
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        el.classList.remove("enter-from-right", "enter-from-left", "leave-left", "leave-right");
-        setTimeout(()=>{ swipeLocked = false; }, 320);
-      });
-    });
+    void el.offsetWidth; // もう一度リフローしてから、この後の状態変化をアニメさせる
+    el.classList.remove("enter-from-right", "enter-from-left");
+    setTimeout(()=>{ swipeLocked = false; }, 320);
   }, 300);
 }
 function initSwipe(){
