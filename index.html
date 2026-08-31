@@ -6010,15 +6010,15 @@ function goToRandomRecipe(dir){
   // 本体には次のレシピを描画し、まだ画面外（フリック方向の逆側）に置いておく
   showDetail(next);
   el.style.transition = "none";
+  clone.style.transition = "none";
   el.style.transform = dir === "left" ? "translateX(100%)" : "translateX(-100%)";
-  void el.offsetWidth; // 強制リフロー：この位置を確定させる
+  clone.style.transform = "translateX(0)";
+  void el.offsetWidth; // 強制リフロー：この位置をブラウザに確定させる（rAFに頼らずアニメを確実に発火させる）
 
-  requestAnimationFrame(()=>{
-    el.style.transition = "";
-    el.style.transform = "translateX(0)";
-    clone.style.transition = "transform .32s cubic-bezier(.22,.61,.36,1)";
-    clone.style.transform = dir === "left" ? "translateX(-100%)" : "translateX(100%)";
-  });
+  el.style.transition = "";
+  clone.style.transition = "transform .32s cubic-bezier(.22,.61,.36,1)";
+  el.style.transform = "translateX(0)";
+  clone.style.transform = dir === "left" ? "translateX(-100%)" : "translateX(100%)";
 
   setTimeout(()=>{
     clone.remove();
