@@ -146,17 +146,20 @@
   .empty{padding:2.5rem 1.2rem;text-align:center;color:var(--ink-soft);font-size:.95rem;}
 
   /* ---------- 詳細ページ ---------- */
-  .detail{display:none;overflow-x:hidden;}
+  .detail{display:none;overflow-x:hidden;position:relative;}
   .detail.show{display:block;}
   .d-content{
-    transition:transform .3s cubic-bezier(.22,.61,.36,1), opacity .3s cubic-bezier(.22,.61,.36,1);
-    will-change:transform,opacity;
+    position:relative;
+    background:var(--paper);
+    transition:transform .32s cubic-bezier(.22,.61,.36,1);
+    will-change:transform;
   }
-  .d-content.no-anim{transition:none !important;}
-  .d-content.leave-left{transform:translateX(-32%);opacity:0;}
-  .d-content.leave-right{transform:translateX(32%);opacity:0;}
-  .d-content.enter-from-left{transform:translateX(-32%);opacity:0;}
-  .d-content.enter-from-right{transform:translateX(32%);opacity:0;}
+  .d-content-clone{
+    position:absolute;
+    top:0;left:0;width:100%;
+    pointer-events:none;
+    z-index:2;
+  }
   .swipe-hint{
     position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
     background:rgba(40,32,24,.78);color:#fff;font-size:.85rem;font-weight:600;
@@ -5952,23 +5955,43 @@ function showSwipeHint(msg){
   showSwipeHint._t = setTimeout(()=>hint.classList.remove("show"), 1300);
 }
 function goToRandomRecipe(dir){
+  // 押し出しエフェクト：今の内容の見た目をその場に複製して残し、
+  // 本体には新しいレシピを画面外で描画してから、両方を同時に同じ方向へスライドさせる。
   if (swipeLocked || !cur) return;
   const pool = getSwipePool();
   const next = pickRandomOther(pool, cur.id);
   if (!next){ showSwipeHint("ほかに切り替えられるレシピがありません"); return; }
   swipeLocked = true;
+
+  const wrap = document.getElementById("detailView");
   const el = document.getElementById("dContent");
-  el.classList.add(dir === "left" ? "leave-left" : "leave-right");
+
+  // 現在の見た目をクローンして重ね、押し出される側として使う
+  const clone = el.cloneNode(true);
+  clone.removeAttribute("id");
+  clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+  clone.classList.add("d-content-clone");
+  wrap.appendChild(clone);
+
+  // 本体には次のレシピを描画し、まだ画面外（フリック方向の逆側）に置いておく
+  showDetail(next);
+  el.style.transition = "none";
+  el.style.transform = dir === "left" ? "translateX(100%)" : "translateX(-100%)";
+  void el.offsetWidth; // 強制リフロー：この位置を確定させる
+
+  requestAnimationFrame(()=>{
+    el.style.transition = "";
+    el.style.transform = "translateX(0)";
+    clone.style.transition = "transform .32s cubic-bezier(.22,.61,.36,1)";
+    clone.style.transform = dir === "left" ? "translateX(-100%)" : "translateX(100%)";
+  });
+
   setTimeout(()=>{
-    showDetail(next);
-    el.classList.remove("leave-left", "leave-right");
-    el.classList.add("no-anim", dir === "left" ? "enter-from-right" : "enter-from-left");
-    void el.offsetWidth; // 強制リフロー：ジャンプ先の位置を確定させる
-    el.classList.remove("no-anim");
-    void el.offsetWidth; // もう一度リフローしてから、この後の状態変化をアニメさせる
-    el.classList.remove("enter-from-right", "enter-from-left");
-    setTimeout(()=>{ swipeLocked = false; }, 320);
-  }, 300);
+    clone.remove();
+    el.style.transition = "";
+    el.style.transform = "";
+    swipeLocked = false;
+  }, 360);
 }
 function initSwipe(){
   const el = document.getElementById("dContent");
