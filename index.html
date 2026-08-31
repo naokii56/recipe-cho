@@ -142,8 +142,8 @@
   }
   .card.add .t{font-size:.9rem;font-weight:600;color:var(--ink);}
   .card.add .d{font-size:.75rem;line-height:1.55;}
-  .count{padding:.9rem 1.2rem 0;font-size:.8rem;color:var(--ink-soft);letter-spacing:.05em;}
-  .count-note{margin-left:.5em;opacity:.7;}
+  .count{padding:.9rem 1.2rem 0;font-size:.8rem;color:var(--ink-soft);letter-spacing:.05em;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.3em .6em;}
+  .count-note{opacity:.7;font-size:.68rem;text-align:right;letter-spacing:.02em;}
   .empty{padding:2.5rem 1.2rem;text-align:center;color:var(--ink-soft);font-size:.95rem;}
 
   /* ---------- 詳細ページ ---------- */
@@ -5880,9 +5880,11 @@ function renderGrid(){
   const hits = shuffledOrder().filter(r => (curCat==="すべて" || r.category===curCat) && matches(r, kw)); // その日のうちは並びが変わらないランダム順
 
   const filtering = (kw && kw.trim()) || curCat !== "すべて";
-  document.getElementById("count").innerHTML = (filtering
-    ? hits.length + " 品が見つかりました（全 " + RECIPES.length + " 品）"
-    : "全 " + RECIPES.length + " 品") + '<span class="count-note">料理の一覧は毎日並び替えられます</span>';
+  document.getElementById("count").innerHTML =
+    '<span class="count-main">' + (filtering
+      ? hits.length + " 品が見つかりました（全 " + RECIPES.length + " 品）"
+      : "全 " + RECIPES.length + " 品") + '</span>' +
+    '<span class="count-note">料理の一覧は毎日並び替えられます</span>';
   document.getElementById("empty").style.display = (hits.length===0 && kw) ? "block" : "none";
 
   hits.forEach(r=>{
