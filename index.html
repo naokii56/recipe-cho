@@ -294,6 +294,11 @@
     font-family:inherit;cursor:pointer;letter-spacing:.05em;
   }
   .note-save:disabled{opacity:.5;}
+  .note-locked-btn{
+    background:none;border:none;padding:.3rem 0;margin-top:.3rem;
+    font-family:inherit;font-size:.78rem;color:var(--ink-soft);
+    text-decoration:underline;cursor:pointer;letter-spacing:.02em;
+  }
   .note-msg{font-size:.8rem;margin-top:.4rem;color:var(--green);min-height:1.2em;}
   .note-msg.err{color:#b03030;}
   .keybox{
@@ -439,8 +444,13 @@
       <h2 class="sec">次はこうする</h2>
       <div class="notes" id="dNotes"></div>
       <div class="note-form">
-        <textarea id="noteInput" placeholder="例：砂糖はもう少し控えめがいい"></textarea>
-        <button class="note-save" id="noteSaveBtn" onclick="saveNote()">メモを書き込む</button>
+        <div id="noteWriteArea" style="display:none">
+          <textarea id="noteInput" placeholder="例：砂糖はもう少し控えめがいい"></textarea>
+          <button class="note-save" id="noteSaveBtn" onclick="saveNote()">メモを書き込む</button>
+        </div>
+        <div class="note-locked" id="noteLocked" style="display:none">
+          <button class="note-locked-btn" onclick="revealKeyBox()">合鍵をお持ちの方はこちら</button>
+        </div>
         <div class="note-msg" id="noteMsg"></div>
         <div class="keybox" id="keyBox" style="display:none">
           この画面から書き込むには、<b>合鍵</b>（github_pat_ で始まる文字列）を一度だけ設定してください。iPhoneのメモ帳に保存してあるものです。
@@ -5949,8 +5959,10 @@ function showDetail(r){
   editIdx = null; delArm = null;
   document.getElementById("noteInput").value = "";
   document.getElementById("noteSaveBtn").textContent = "メモを書き込む";
+  document.getElementById("keyBox").style.display = "none";
   noteMsg("");
   renderNotes();
+  updateNoteFormVisibility();
 
   document.getElementById("dFoot").innerHTML =
     "作ったら「次はこうする」にメモをひとこと——それだけで作った回数も自動で増えます。<br>出来上がりの写真は、Claudeに送れば表紙に差し替えられます。";
@@ -6173,10 +6185,12 @@ function renderNotes(){
         h += '<div class="note">' +
              '<span class="note-side">' +
              '<span class="dt">'+esc(n.date)+'</span>' +
-             '<button onclick="editNote('+i+')">編集</button>' +
-             (armed
-               ? '<button class="del2" onclick="deleteNote('+i+')">本当に削除</button>'
-               : '<button onclick="armDelete('+i+')">削除</button>') +
+             (KEY ? (
+               '<button onclick="editNote('+i+')">編集</button>' +
+               (armed
+                 ? '<button class="del2" onclick="deleteNote('+i+')">本当に削除</button>'
+                 : '<button onclick="armDelete('+i+')">削除</button>')
+             ) : '') +
              '</span>' +
              '<span class="tx">'+esc(n.text)+'</span></div>';
       }
@@ -6385,7 +6399,25 @@ function setKey(){
   lsSet("rc_key", v);
   document.getElementById("keyBox").style.display = "none";
   document.getElementById("keyInput").value = "";
-  noteMsg("合鍵を設定しました。もう一度「メモを書き込む」を押してください");
+  updateNoteFormVisibility();
+  noteMsg("合鍵を設定しました。メモを書き込んでください");
+}
+
+/* 合鍵（書き込み権限）を持っているかどうかで、書き込み欄の見え方を切り替える */
+function updateNoteFormVisibility(){
+  const writeArea = document.getElementById("noteWriteArea");
+  const locked = document.getElementById("noteLocked");
+  if (!writeArea || !locked) return;
+  if (KEY){
+    writeArea.style.display = "block";
+    locked.style.display = "none";
+  } else {
+    writeArea.style.display = "none";
+    locked.style.display = "block";
+  }
+}
+function revealKeyBox(){
+  document.getElementById("keyBox").style.display = "block";
 }
 
 /* ============ 調理モード ============ */
